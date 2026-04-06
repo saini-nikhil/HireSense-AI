@@ -1,15 +1,26 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { DEFAULT_MONGODB_URI } from './database/mongodb.constants';
 import { InterviewModule } from './modules/interview/interview.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Interview } from './modules/interview/interview.entity';
 
 @Module({
   imports: [
-    MongooseModule.forRoot(
-      process.env.MONGO_URI ?? DEFAULT_MONGODB_URI,
-    ),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: 'aws-1-ap-southeast-2.pooler.supabase.com', // from Supabase
+      port: 5432,
+      username: 'postgres.hvzcbihvtizqfjnpfucn',
+      password: 'NCc6twHzyX&B5Uw',
+      database: 'ai',
+      ssl: {
+        rejectUnauthorized: false,
+      },
+      entities: [Interview],
+      synchronize: true,
+    }),
+
     InterviewModule,
   ],
   controllers: [AppController],

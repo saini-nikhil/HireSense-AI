@@ -1,16 +1,13 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { InterviewController } from './interview.controller';
 import { InterviewService } from './interview.service';
-import { InterviewSchema } from './interview.schema';
+import { Interview } from './interview.entity';
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: 'Interview', schema: InterviewSchema },
-    ]),
-  ],
+  imports: [TypeOrmModule.forFeature([Interview])],
   controllers: [InterviewController],
   providers: [InterviewService],
+  exports: [TypeOrmModule],
 })
 export class InterviewModule {}

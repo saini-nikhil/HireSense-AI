@@ -2,8 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import axios from 'axios';
-
 import { Interview } from './interview.entity';
+import * as FormData from 'form-data';
+import { UploadedFile } from '../../common/types/uploaded-file.type';
+import { findJobsForResume } from './test'
 
 @Injectable()
 export class InterviewService {
@@ -12,29 +14,50 @@ export class InterviewService {
     private readonly interviewRepo: Repository<Interview>,
   ) {}
 
-  private AI_URL = process.env.PYTHON_API_URL;
+  
+  // console.log(this.AI_URL);
 
   // 🚀 START INTERVIEW
-  async startInterview(userId: string, resumeText: string) {
-    const res = await axios.post(`${this.AI_URL}/interview/generate`, {
-      resumeText,
-    });
+async startInterview(userId: string, file: UploadedFile, jobDescription: string) {
+  const aiUrl = process.env.PYTHON_API_URL;
 
-    const questions = res.data.questions;
+  const formData = new FormData();
+  
+
+  formData.append('file', file.buffer, {
+    filename: file.originalname,
+    contentType: file.mimetype,
+  });
+
+  formData.append('jobDescription', jobDescription);
+// return await formData
+  const res = await axios.post(`${aiUrl}/evaluate`, formData, {
+    headers: {
+      ...formData.getHeaders(),
+    },
+  });
+
+  const result = res.data;
+  const resumeContent = result.analysis?.summary || '';
+  await findJobsForResume(resumeContent, jobDescription);
+  // console.log("result",result);
+
 
     // ✅ create + save
-    const interview = this.interviewRepo.create({
-      userId,
-      resumeText,
-      questions,
-      answers: [],
-    });
+  const interview = this.interviewRepo.create({
+    userId,
+    resumeText: result.analysis?.summary || '', // or store separately
+    questions: result?.interview?.questions || [],
+    answers: [],
+  });
+
 
     const savedInterview = await this.interviewRepo.save(interview);
+    console.log(savedInterview)
 
     return {
       interviewId: savedInterview.id, // ✅ fixed
-      question: questions[0],
+      question: savedInterview.questions,
     };
   }
 
@@ -51,8 +74,10 @@ export class InterviewService {
     const index = interview.currentQuestionIndex;
     const question = interview.questions[index];
 
+    const aiUrl = process.env.PYTHON_API_URL;
+
     // 🔥 Evaluate via Python
-    const evalRes = await axios.post(`${this.AI_URL}/interview/evaluate`, {
+    const evalRes = await axios.post(`${aiUrl}/interview/evaluate`, {
       question,
       answer,
     });

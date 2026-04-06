@@ -29,3 +29,20 @@ Return ONLY JSON:
 RESUME:
 {resume}
 """
+
+
+EVALUATION_PROMPT = """
+Evaluate the answer.
+
+Return ONLY JSON:
+{
+  "score": number,
+  "feedback": string
+}
+
+QUESTION:
+{question}
+
+ANSWER:
+{answer}
+"""

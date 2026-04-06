@@ -1,62 +1,176 @@
 import json
 import os
-from openai import OpenAI
-from app.prompts import RESUME_ANALYSIS_PROMPT, INTERVIEW_PROMPT
+from pathlib import Path
+from typing import Iterable
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-print("OPENROUTER_API_KEY",OPENROUTER_API_KEY)
-# if not OPENROUTER_API_KEY:
-#     raise ValueError("OPENROUTER_API_KEY environment variable not set")
+from dotenv import load_dotenv
+from openai import OpenAI, OpenAIError, RateLimitError
 
-client = OpenAI(
-  base_url="https://openrouter.ai/api/v1",
-  api_key='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',
+from app.prompts import (
+    INTERVIEW_PROMPT,
+    RESUME_ANALYSIS_PROMPT,
+    EVALUATION_PROMPT,
 )
 
+# 📁 Load env
+BASE_DIR = Path(__file__).resolve().parents[2]
+APP_DIR = Path(__file__).resolve().parents[1]
 
-def safe_json_parse(text):
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(APP_DIR / ".env")
+
+# 🔐 Config
+OPENROUTER_BASE_URL = os.getenv(
+    "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+)
+
+ANALYSIS_MODELS = tuple(
+    model.strip()
+    for model in os.getenv(
+        "OPENROUTER_ANALYSIS_MODELS",
+        "qwen/qwen3.6-plus:free,gpt-4o-mini",
+    ).split(",")
+    if model.strip()
+)
+
+INTERVIEW_MODELS = tuple(
+    model.strip()
+    for model in os.getenv(
+        "OPENROUTER_INTERVIEW_MODELS",
+        "qwen/qwen3.6-plus:free,gpt-4o-mini",
+    ).split(",")
+    if model.strip()
+)
+
+_client: OpenAI | None = None
+
+
+class AIServiceError(RuntimeError):
+    pass
+
+
+# 🔗 Client
+def _get_client() -> OpenAI:
+    global _client
+
+    if _client:
+        return _client
+
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise AIServiceError("OPENROUTER_API_KEY not set")
+
+    _client = OpenAI(
+        base_url=OPENROUTER_BASE_URL,
+        api_key=api_key,
+    )
+    return _client
+
+
+# 🔥 Better JSON parsing (important)
+def safe_json_parse(text: str):
     try:
         return json.loads(text)
     except:
-        return {"error": "Invalid AI response", "raw": text}
+        try:
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            return json.loads(text[start:end])
+        except:
+            return {"error": "Invalid AI response", "raw": text}
 
 
+# 🧠 Extract text
+def _first_text_content(response) -> str:
+    try:
+        content = response.choices[0].message.content
+
+        if isinstance(content, str):
+            return content
+
+        if isinstance(content, list):
+            return "".join(
+                part.text for part in content if getattr(part, "type", None) == "text"
+            )
+
+        return str(content)
+    except Exception:
+        return ""
+
+
+# 🔁 LLM call with fallback
+def _complete_with_fallback(prompt: str, models: Iterable[str], temperature: float):
+    client = _get_client()
+    last_error = None
+
+    for model in models:
+        try:
+            return client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+            )
+
+        except RateLimitError as e:
+            last_error = e
+            continue
+
+        except OpenAIError as e:
+            raise AIServiceError(f"{model} failed: {e}") from e
+
+    raise AIServiceError("All models failed") from last_error
+
+
+# 🚀 MAIN FUNCTION
 def evaluate_resume_all(resume_text: str, job_description: str):
-    
+
+    # limit text (VERY IMPORTANT)
+    resume_text = resume_text[:4000]
+    job_description = job_description[:2000]
+
     # 🔹 Resume Analysis
     analysis_prompt = RESUME_ANALYSIS_PROMPT.format(
         resume=resume_text,
-        job=job_description
+        job=job_description,
     )
-    # print(analysis_prompt)
 
-    analysis_res = client.chat.completions.create(
-        model="qwen/qwen3.6-plus:free",
-        messages=[{"role": "user", "content": analysis_prompt}],
+    analysis_res = _complete_with_fallback(
+        prompt=analysis_prompt,
+        models=ANALYSIS_MODELS,
         temperature=0.3,
     )
-    # print(analysis_res)
 
-    analysis_data = safe_json_parse(
-        analysis_res.choices[0].message.content
-    )
+    analysis_data = safe_json_parse(_first_text_content(analysis_res))
 
     # 🔹 Interview Questions
-    interview_prompt = INTERVIEW_PROMPT.format(
-        resume=resume_text
-    )
+    interview_prompt = INTERVIEW_PROMPT.format(resume=resume_text)
 
-    interview_res = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": interview_prompt}],
+    interview_res = _complete_with_fallback(
+        prompt=interview_prompt,
+        models=INTERVIEW_MODELS,
         temperature=0.5,
     )
 
-    interview_data = safe_json_parse(
-        interview_res.choices[0].message.content
-    )
+    interview_data = safe_json_parse(_first_text_content(interview_res))
 
     return {
         "analysis": analysis_data,
-        "interview": interview_data
+        "interview": interview_data,
     }
+
+
+# 🎤 ANSWER EVALUATION (FIXED)
+def evaluate_answer(question: str, answer: str):
+
+    prompt = EVALUATION_PROMPT.format(
+        question=question,
+        answer=answer,
+    )
+
+    res = _complete_with_fallback(
+        prompt=prompt,
+        models=INTERVIEW_MODELS,
+        temperature=0.3,
+    )
+
+    return safe_json_parse(_first_text_content(res))

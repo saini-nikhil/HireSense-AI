@@ -5,6 +5,7 @@ import axios from 'axios';
 export class AiService {
   private apiKey = process.env.OPENROUTER_API_KEY;
 
+  // ================= NEXT QUESTION =================
   async generateNextStep(data: {
     resume: string;
     jd: string;
@@ -12,10 +13,12 @@ export class AiService {
     lastQuestion: string;
     userAnswer: string;
   }) {
+    console.log('data', data);
+
     const prompt = `
 You are a professional interviewer.
 
-Resume:
+Candidate Resume:
 ${data.resume}
 
 Job Description:
@@ -30,25 +33,49 @@ ${data.userAnswer}
 Conversation History:
 ${JSON.stringify(data.history)}
 
-Instructions:
-- Ask ONLY ONE question at a time
-- Be conversational and natural
-- If user says "repeat" → repeat same question
-- If user says "skip" → ask new question
-- If user is confused → explain simply then ask again
-- Evaluate answer (technical + communication)
-- Adjust difficulty based on answers
-- Focus on skills from resume
-- Always return valid JSON only. Do not add extra text.
+=========================
+STRICT INTERVIEW RULES:
+=========================
 
-Return STRICT JSON:
+1. PRIORITY ORDER:
+   - FIRST: Ask from RESUME (projects, skills, experience)
+   - SECOND: Match with JOB DESCRIPTION
+   - THIRD: Only then ask generic questions
+
+2. NEVER ask generic questions unless necessary.
+
+3. ALWAYS:
+   - Pick something specific from resume
+   - Ask deep follow-up questions
+   - Connect with real-world scenarios
+
+4. If candidate mentions:
+   - Project → ask architecture, challenges, decisions
+   - Tech → ask implementation details
+   - Experience → ask real-world usage
+
+5. Behavior:
+   - Ask ONLY ONE question
+   - Be human, slightly challenging
+   - If answer weak → go deeper
+   - If good → move forward
+
+6. Special:
+   - "repeat" → repeat question
+   - confused → explain + ask again
+   - end → finish interview
+
+=========================
+OUTPUT (STRICT JSON ONLY)
+=========================
+
 {
   "action": "ask | repeat | explain | end",
   "question": "...",
   "evaluation": {
     "technicalScore": number,
     "communicationScore": number,
-    "feedback": "..."
+    "feedback": "short feedback"
   }
 }
 `;
@@ -57,32 +84,23 @@ Return STRICT JSON:
       const response = await axios.post(
         'https://openrouter.ai/api/v1/chat/completions',
         {
-          model: 'openai/gpt-4o-mini', // fast + cheap
+          model: 'openai/gpt-4o-mini',
           messages: [
             {
               role: 'system',
               content: `
-You are a senior interviewer at a top tech company.
+You are a senior technical interviewer.
 
-Behavior rules:
-- Speak like a human, not like AI
-- Ask only ONE question at a time
-- Sometimes ask follow-up questions based on answers
-- If answer is weak → ask deeper question
-- If answer is good → acknowledge briefly and move on
-- Occasionally interrupt if answer is too long
-- Be polite but slightly challenging
+CRITICAL RULES:
+- Always use RESUME first
+- Then align with JOB DESCRIPTION
+- Never ignore resume content
 
-Tone:
-- Professional
-- Slightly strict
-- Encouraging but not overly friendly
-
-Additional Rules:
-- Use natural filler phrases like a real interviewer
-- If user mentions a project or technology, ask a follow-up question before switching topic
-- If user says "I don't know", give a hint and allow retry once
-
+STYLE:
+- Human-like
+- Ask deep technical follow-ups
+- Focus on real projects
+- Slightly strict but fair
 `,
             },
             {
@@ -102,14 +120,15 @@ Additional Rules:
 
       const content = response.data.choices[0].message.content;
 
-      // IMPORTANT: Parse JSON safely
       return this.safeJsonParse(content);
     } catch (error) {
       console.error('OpenRouter Error:', error.response?.data || error.message);
 
+      // fallback
       return {
         action: 'ask',
-        question: 'Can you explain your recent project?',
+        question:
+          'Can you explain one of your recent projects and the technologies you used?',
         evaluation: {
           technicalScore: 5,
           communicationScore: 5,
@@ -119,23 +138,7 @@ Additional Rules:
     }
   }
 
-  // 🛡️ Safe JSON parser
-  private safeJsonParse(text: string) {
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-      throw new Error('No JSON found');
-    } catch {
-      return {
-        action: 'ask',
-        question: text,
-        evaluation: null,
-      };
-    }
-  }
-
+  // ================= FINAL REPORT =================
   async generateFinalReport(history: any[], resume: string, jd: string) {
     const prompt = `
 You are an expert interviewer.
@@ -149,17 +152,18 @@ ${jd}
 Interview Conversation:
 ${JSON.stringify(history)}
 
-Instructions:
-- Evaluate ALL answers together
-- Give:
-  1. Technical Score (0-10)
-  2. Communication Score (0-10)
-  3. Overall Score (0-10)
-  4. Strengths
-  5. Weaknesses
-  6. Suggestions to improve
+=========================
+EVALUATION RULES:
+=========================
 
-Return STRICT JSON:
+- Evaluate ALL answers together
+- Consider both resume claims + actual answers
+- Be realistic (not overly positive)
+
+=========================
+OUTPUT (STRICT JSON)
+=========================
+
 {
   "technicalScore": number,
   "communicationScore": number,
@@ -170,23 +174,28 @@ Return STRICT JSON:
 }
 `;
 
-    // 👉 call OpenRouter here (same axios code)
     try {
       const response = await axios.post(
         'https://openrouter.ai/api/v1/chat/completions',
         {
-          model: 'openai/gpt-4o-mini', // fast + cheap
+          model: 'openai/gpt-4o-mini',
           messages: [
             {
               role: 'system',
-              content: 'You are an expert technical interviewer.',
+              content: `
+You are a strict but fair technical interviewer.
+
+Give honest feedback.
+Avoid generic praise.
+Be specific.
+`,
             },
             {
               role: 'user',
               content: prompt,
             },
           ],
-          temperature: 0.7,
+          temperature: 0.6,
         },
         {
           headers: {
@@ -198,10 +207,37 @@ Return STRICT JSON:
 
       const content = response.data.choices[0].message.content;
 
-      // ⚠️ IMPORTANT: Parse JSON safely
       return this.safeJsonParse(content);
     } catch (error) {
       console.error('OpenRouter Error:', error.response?.data || error.message);
+
+      return {
+        technicalScore: 5,
+        communicationScore: 5,
+        overallScore: 5,
+        strengths: ['Basic understanding of concepts'],
+        weaknesses: ['Needs improvement in explaining concepts clearly'],
+        suggestions: ['Practice mock interviews and project explanations'],
+      };
+    }
+  }
+
+  // ================= SAFE JSON PARSER =================
+  private safeJsonParse(text: string) {
+    try {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        return JSON.parse(match[0]);
+      }
+      throw new Error('Invalid JSON');
+    } catch (e) {
+      console.warn('JSON parse failed, fallback:', text);
+
+      return {
+        action: 'ask',
+        question: text,
+        evaluation: null,
+      };
     }
   }
 }

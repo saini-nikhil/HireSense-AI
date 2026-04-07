@@ -12,6 +12,7 @@ import { findJobsForResume } from './test';
 import { AiService } from './ai.service';
 import { queryObjects } from 'v8';
 
+
 @Injectable()
 export class InterviewService {
   constructor(
@@ -143,7 +144,7 @@ export class InterviewService {
   //   return interview;
   // }
   async startInterview(resumeText, jobDescription) {
-    const sessionId = Date.now().toString();
+    const sessionId = 1234569858;
 
     const firstQuestion = 'Tell me about yourself';
 
@@ -161,6 +162,9 @@ export class InterviewService {
   }
 
   async processAnswer({ sessionId, answer }) {
+    console.log('sessionId', sessionId);
+    console.log('answer', answer);
+    sessionId = 1234569858;
     const session = this.sessions.get(sessionId);
 
     if (!session) {
@@ -175,6 +179,7 @@ export class InterviewService {
       lowerAnswer.includes('stop interview') ||
       lowerAnswer.includes('finish')
     ) {
+      console.log('session.history', lowerAnswer);
       const finalReport = await this.aiService.generateFinalReport(
         session.history,
         session.resume,

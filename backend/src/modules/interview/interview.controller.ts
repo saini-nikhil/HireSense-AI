@@ -19,7 +19,19 @@ export class InterviewController {
     @Body('userId') userId: string,
     @Body('jobDescription') jobDescription: string,
   ) {
-    // console.log("file",file);
-    return this.interviewService.startInterview(userId, file, jobDescription);
+    const resumeText = file?.buffer?.toString('utf-8') ?? '';
+    // console.log('resumeText', resumeText);
+    const jd = jobDescription || 'Full Stack developer';
+
+    return this.interviewService.startInterview(resumeText, jd);
+  }
+
+  // @Post('start')
+  // startInterview(@Body() body: any) {
+  //   return this.interviewService.startInterview(body);
+  // }
+  @Post('answer')
+  answer(@Body() body: any) {
+    return this.interviewService.processAnswer(body);
   }
 }

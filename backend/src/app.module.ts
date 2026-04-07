@@ -16,13 +16,13 @@ import { ConfigModule } from '@nestjs/config';
       // username: 'postgres.umcsdlwkzxbbkiscjiva',
       // password: 'v.wmk6*tYxSin7p',
       // database: 'postgres',
-      url: 'postgresql://postgres.umcsdlwkzxbbkiscjiva:v.wmk6*tYxSin7p@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres',
+      url: process.env.postgres_uri,
       ssl: {
         rejectUnauthorized: false,
       },
       entities: [Interview],
       synchronize: true,
-  autoLoadEntities: true,
+      autoLoadEntities: true,
     }),
 
     InterviewModule,

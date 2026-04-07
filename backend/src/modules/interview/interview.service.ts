@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Interview } from './interview.entity';
 import * as FormData from 'form-data';
 import { UploadedFile } from '../../common/types/uploaded-file.type';
-import { findJobsForResume } from './test'
+import { findJobsForResume } from './test';
 
 @Injectable()
 export class InterviewService {
@@ -14,49 +14,52 @@ export class InterviewService {
     private readonly interviewRepo: Repository<Interview>,
   ) {}
 
-  
   // console.log(this.AI_URL);
 
   // 🚀 START INTERVIEW
-async startInterview(userId: string, file: UploadedFile, jobDescription: string) {
-  const aiUrl = process.env.PYTHON_API_URL;
+  async startInterview(
+    userId: string,
+    file: UploadedFile,
+    jobDescription: string,
+  ) {
+    const aiUrl = process.env.PYTHON_API_URL;
 
-  const formData = new FormData();
-  
+    const formData = new FormData();
 
-  formData.append('file', file.buffer, {
-    filename: file.originalname,
-    contentType: file.mimetype,
-  });
+    formData.append('file', file.buffer, {
+      filename: file.originalname,
+      contentType: file.mimetype,
+    });
 
-  formData.append('jobDescription', jobDescription);
-// return await formData
-  const res = await axios.post(`${aiUrl}/evaluate`, formData, {
-    headers: {
-      ...formData.getHeaders(),
-    },
-  });
+    formData.append('jobDescription', jobDescription);
+    // return await formData
+    const res = await axios.post<{
+      analysis?: { summary?: string };
+      interview?: { questions?: string[] };
+    }>(`${aiUrl}/evaluate`, formData, {
+      headers: {
+        ...formData.getHeaders(),
+      },
+    });
 
-  const result = res.data;
-  const resumeContent = result.analysis?.summary || '';
-  await findJobsForResume(resumeContent, jobDescription);
-  // console.log("result",result);
-
+    const result = res.data;
+    const resumeContent = result.analysis?.summary || '';
+    await findJobsForResume(resumeContent, jobDescription);
+    // console.log("result",result);
 
     // ✅ create + save
-  const interview = this.interviewRepo.create({
-    userId,
-    resumeText: result.analysis?.summary || '', // or store separately
-    questions: result?.interview?.questions || [],
-    answers: [],
-  });
-
+    const interview = this.interviewRepo.create({
+      userId,
+      resumeText: result.analysis?.summary || '', // or store separately
+      questions: result?.interview?.questions || [],
+      answers: [],
+    });
 
     const savedInterview = await this.interviewRepo.save(interview);
-    console.log(savedInterview)
+    console.log(savedInterview);
 
     return {
-      interviewId: savedInterview.id, // ✅ fixed
+      interviewId: savedInterview.id, //
       question: savedInterview.questions,
     };
   }

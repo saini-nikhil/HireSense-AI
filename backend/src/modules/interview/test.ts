@@ -7,7 +7,7 @@ const client = new ApifyClient({ token: process.env.APIFY_API_TOKEN });
 // ---------------------------------------------------------------------------
 const MODELS = [
   'qwen/qwen3.6-plus:free',
-  "gpt-4o-mini",
+  'gpt-4o-mini',
   'google/gemma-3-12b-it:free',
 ];
 
@@ -25,34 +25,44 @@ async function callAI(prompt: string): Promise<string> {
 
   for (const model of MODELS) {
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'http://localhost:3000',
-          'X-Title': 'Resume Job Finder',
+      const response = await fetch(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            'HTTP-Referer': 'http://localhost:3000',
+            'X-Title': 'Resume Job Finder',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 1000,
+          }),
         },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 1000,
-        }),
-      });
+      );
 
       const data = await response.json();
 
       // Rate-limit or upstream error — try next model
       if (!response.ok || data?.error) {
-        console.warn(`Model ${model} failed:`, data?.error?.message ?? response.status);
-        lastError = new Error(data?.error?.message ?? `HTTP ${response.status}`);
+        console.warn(
+          `Model ${model} failed:`,
+          data?.error?.message ?? response.status,
+        );
+        lastError = new Error(
+          data?.error?.message ?? `HTTP ${response.status}`,
+        );
         await delay(500); // small pause before trying next model
         continue;
       }
 
       const content = data?.choices?.[0]?.message?.content;
       if (!content) {
-        lastError = new Error(`No content from model ${model}: ${JSON.stringify(data)}`);
+        lastError = new Error(
+          `No content from model ${model}: ${JSON.stringify(data)}`,
+        );
         continue;
       }
 
@@ -85,9 +95,11 @@ async function extractKeywordsFromResume(resumeText: string): Promise<{
   location: string;
   skills: string[];
 }> {
-  const textInput = typeof resumeText === 'string' ? resumeText : JSON.stringify(resumeText);
+  const textInput =
+    typeof resumeText === 'string' ? resumeText : JSON.stringify(resumeText);
 
-  const text = await callAI(`Extract the top 3 job titles, primary location, and top 5 skills from this resume.
+  const text =
+    await callAI(`Extract the top 3 job titles, primary location, and top 5 skills from this resume.
 Return ONLY valid JSON, no explanation, no markdown:
 {"jobTitles": ["title1", "title2"], "location": "city, country", "skills": ["skill1"]}
 
@@ -132,9 +144,11 @@ async function rankJobsWithAI(
     description: (j.description || '').slice(0, 300),
   }));
 
-  const textInput = typeof resumeText === 'string' ? resumeText : JSON.stringify(resumeText);
+  const textInput =
+    typeof resumeText === 'string' ? resumeText : JSON.stringify(resumeText);
 
-  const text = await callAI(`You are a job matching expert. Score each job 0-100 based on fit with the resume and target job description.
+  const text =
+    await callAI(`You are a job matching expert. Score each job 0-100 based on fit with the resume and target job description.
 Return ONLY valid JSON, no explanation, no markdown:
 {"rankedJobs": [{"id": 0, "score": 85, "reason": "short reason"}]}
 
@@ -142,7 +156,9 @@ Resume: ${textInput.slice(0, 1500)}
 Target JD: ${userJobDescription || 'Not provided'}
 Jobs: ${JSON.stringify(jobsSummary)}`);
 
-  const { rankedJobs } = parseJSON<{ rankedJobs: { id: number; score: number; reason: string }[] }>(text);
+  const { rankedJobs } = parseJSON<{
+    rankedJobs: { id: number; score: number; reason: string }[];
+  }>(text);
 
   return rankedJobs
     .sort((a, b) => b.score - a.score)

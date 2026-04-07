@@ -10,6 +10,7 @@ import * as FormData from 'form-data';
 import { UploadedFile } from '../../common/types/uploaded-file.type';
 import { findJobsForResume } from './test';
 import { AiService } from './ai.service';
+import { queryObjects } from 'v8';
 
 @Injectable()
 export class InterviewService {
@@ -204,6 +205,21 @@ export class InterviewService {
       question: session.currentQuestion,
       answer,
     });
+    if (session.history.length >= 15) {
+      const finalReport = await this.aiService.generateFinalReport(
+        session.history,
+        session.resume,
+        session.jd,
+      );
+
+      this.sessions.delete(sessionId); // cleanup memory
+
+      return {
+        completed: true,
+        report: finalReport,
+        message: 'Interview auto-ended after 15 questions',
+      };
+    }
 
     // Handle actions
     if (aiResponse.action === 'repeat') {

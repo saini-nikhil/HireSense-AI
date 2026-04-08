@@ -140,6 +140,7 @@ STYLE:
 
   // ================= FINAL REPORT =================
   async generateFinalReport(history: any[], resume: string, jd: string) {
+    console.log('history', history);
     const prompt = `
 You are an expert interviewer.
 
@@ -239,5 +240,24 @@ Be specific.
         evaluation: null,
       };
     }
+  }
+
+  detectIntent(answer: string): boolean {
+    const text = answer.toLowerCase().trim();
+
+    const patterns = [
+      /\bend interview\b/,
+      /\bstop interview\b/,
+      /\bfinish interview\b/,
+      /\bexit interview\b/,
+      /\bi'?m done\b/,
+      /\bi am done\b/,
+      /\blet'?s end\b/,
+      /\bwrap (this )?up\b/,
+      /\bthat'?s all\b/,
+      /\bno more questions\b/,
+    ];
+
+    return patterns.some((pattern) => pattern.test(text));
   }
 }

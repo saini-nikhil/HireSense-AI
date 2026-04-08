@@ -11,7 +11,7 @@ import { UploadedFile } from '../../common/types/uploaded-file.type';
 import { findJobsForResume } from './test';
 import { AiService } from './ai.service';
 import { queryObjects } from 'v8';
-
+import e from 'express';
 
 @Injectable()
 export class InterviewService {
@@ -162,102 +162,106 @@ export class InterviewService {
   }
 
   async processAnswer({ sessionId, answer }) {
-    console.log('sessionId', sessionId);
-    console.log('answer', answer);
-    sessionId = 1234569858;
-    const session = this.sessions.get(sessionId);
+    try {
+      console.log('sessionId', sessionId);
+      console.log('answer', answer);
+      sessionId = 1234569858;
+      const session = this.sessions.get(sessionId);
 
-    if (!session) {
-      throw new Error('Session not found');
-    }
+      if (!session) {
+        throw new Error('Session not found');
+      }
 
-    const lowerAnswer = answer.toLowerCase();
+      const lowerAnswer = answer.toLowerCase();
 
-    // 🛑 END INTERVIEW TRIGGER
-    if (
-      lowerAnswer.includes('end') ||
-      lowerAnswer.includes('stop interview') ||
-      lowerAnswer.includes('finish')
-    ) {
-      console.log('session.history', lowerAnswer);
-      const finalReport = await this.aiService.generateFinalReport(
-        session.history,
-        session.resume,
-        session.jd,
-      );
+      // 🛑 END INTERVIEW TRIGGER
+      const shouldEndInterview =
+        /\bend\b/.test(lowerAnswer) ||
+        /\bstop interview\b/.test(lowerAnswer) ||
+        /\bfinish\b/.test(lowerAnswer);
+      console.log('shouldEndInterview', shouldEndInterview);
+      if (shouldEndInterview) {
+        const finalReport = await this.aiService.generateFinalReport(
+          session.history,
+          session.resume,
+          session.jd,
+        );
 
-      this.sessions.delete(sessionId); // cleanup
+        this.sessions.delete(sessionId);
 
-      return {
-        completed: true,
-        report: finalReport,
-      };
-    }
+        return {
+          completed: true,
+          report: finalReport,
+        };
+      }
+      //  Call AI for next step (NO evaluation here)
+      const aiResponse = await this.aiService.generateNextStep({
+        resume: session.resume,
+        jd: session.jd,
+        history: session.history,
+        lastQuestion: session.currentQuestion,
+        userAnswer: answer,
+      });
 
-    //  Call AI for next step (NO evaluation here)
-    const aiResponse = await this.aiService.generateNextStep({
-      resume: session.resume,
-      jd: session.jd,
-      history: session.history,
-      lastQuestion: session.currentQuestion,
-      userAnswer: answer,
-    });
+      console.log('aiResponse', aiResponse);
 
-    console.log('aiResponse', aiResponse);
-
-    //  STORE ONLY (no evaluation yet)
-    session.history.push({
-      question: session.currentQuestion,
-      answer,
-    });
-    if (session.history.length >= 15) {
-      const finalReport = await this.aiService.generateFinalReport(
-        session.history,
-        session.resume,
-        session.jd,
-      );
-
-      this.sessions.delete(sessionId); // cleanup memory
-
-      return {
-        completed: true,
-        report: finalReport,
-        message: 'Interview auto-ended after 15 questions',
-      };
-    }
-
-    // Handle actions
-    if (aiResponse.action === 'repeat') {
-      return { question: session.currentQuestion };
-    }
-
-    if (aiResponse.action === 'explain') {
-      return {
-        explanation: aiResponse.question,
+      //  STORE ONLY (no evaluation yet)
+      session.history.push({
         question: session.currentQuestion,
-      };
-    }
+        answer,
+      });
+      if (session.history.length >= 15) {
+        const finalReport = await this.aiService.generateFinalReport(
+          session.history,
+          session.resume,
+          session.jd,
+        );
 
-    if (aiResponse.action === 'end') {
-      const finalReport = await this.aiService.generateFinalReport(
-        session.history,
-        session.resume,
-        session.jd,
-      );
+        this.sessions.delete(sessionId); // cleanup memory
 
-      this.sessions.delete(sessionId);
+        return {
+          completed: true,
+          report: finalReport,
+          message: 'Interview auto-ended after 15 questions',
+        };
+      }
+
+      // Handle actions
+      if (aiResponse.action === 'repeat') {
+        return { question: session.currentQuestion };
+      }
+
+      if (aiResponse.action === 'explain') {
+        return {
+          explanation: aiResponse.question,
+          question: session.currentQuestion,
+        };
+      }
+
+      if (aiResponse.action === 'end') {
+        const finalReport = await this.aiService.generateFinalReport(
+          session.history,
+          session.resume,
+          session.jd,
+        );
+
+        this.sessions.delete(sessionId);
+
+        return {
+          completed: true,
+          report: finalReport,
+        };
+      }
+
+      // Next question
+      session.currentQuestion = aiResponse.question;
 
       return {
-        completed: true,
-        report: finalReport,
+        nextQuestion: aiResponse.question,
       };
+    } catch (error) {
+      console.log('error', error);
+      return { error: error.message };
     }
-
-    // Next question
-    session.currentQuestion = aiResponse.question;
-
-    return {
-      nextQuestion: aiResponse.question,
-    };
   }
 }

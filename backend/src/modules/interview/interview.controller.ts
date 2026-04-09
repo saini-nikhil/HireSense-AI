@@ -3,11 +3,13 @@ import {
   Controller,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { InterviewService } from './interview.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile as ResumeFile } from '../../common/types/uploaded-file.type';
+import { AuthGuard } from '@nestjs/passport';
 const pdfParse = require('pdf-parse');
 
 @Controller('interview')
@@ -15,6 +17,7 @@ export class InterviewController {
   constructor(private readonly interviewService: InterviewService) {}
 
   @Post('start-interview')
+  @UseGuards(AuthGuard('jwt'))
   @UseInterceptors(FileInterceptor('file'))
   async startInterview(
     @UploadedFile() file: ResumeFile,

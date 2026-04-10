@@ -143,12 +143,19 @@ export class InterviewService {
 
   //   return interview;
   // }
-  async startInterview(resumeText, jobDescription) {
+  async startInterview(
+    userId: string,
+    resumeText: string,
+    jobDescription: string,
+  ) {
+    // console.log('resumeText', resumeText);
+    return await findJobsForResume(resumeText, jobDescription);
     const sessionId = 1234569858;
 
     const firstQuestion = 'Tell me about yourself';
 
     this.sessions.set(sessionId, {
+      userId,
       resume: resumeText,
       jd: jobDescription,
       currentQuestion: firstQuestion,

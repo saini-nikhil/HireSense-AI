@@ -1,6 +1,10 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { User } from 'src/database/user.entity';
-import { Not, Repository } from 'typeorm';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { User } from '../../database/user.entity';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -15,9 +19,14 @@ export class AuthService {
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.userRepo.findOne({ where: { email } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return null;
+    if (!isMatch) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     return user;
   }
@@ -34,7 +43,7 @@ export class AuthService {
       where: { email: data.email },
     });
     if (userExists) {
-      throw new NotFoundException('User already exists');
+      throw new ConflictException('User already exists');
     }
     const hashed = await bcrypt.hash(data.password, 10);
     const user = this.userRepo.create({

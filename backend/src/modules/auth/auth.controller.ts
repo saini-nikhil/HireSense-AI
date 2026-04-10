@@ -8,10 +8,12 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
+import { AuthenticatedRequest } from './interfaces/authenticated-request.interface';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
   @Post('signup')
   async signup(@Body() body) {
     const user = await this.authService.signup(body);
@@ -21,8 +23,7 @@ export class AuthController {
   // 🔑 LOGIN
   @UseGuards(AuthGuard('local'))
   @Post('login')
-  login(@Request() req) {
-    console.log('req.user', req.user);
+  login(@Request() req: AuthenticatedRequest) {
     return this.authService.login(req.user);
   }
 
@@ -34,8 +35,7 @@ export class AuthController {
   // 🌐 CALLBACK
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  googleCallback(@Request() req) {
-    console.log('req.user', req.user);
+  googleCallback(@Request() req: AuthenticatedRequest) {
     return this.authService.login(req.user);
   }
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Req,
   Post,
   UploadedFile,
   UseGuards,
@@ -9,7 +10,8 @@ import {
 import { InterviewService } from './interview.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile as ResumeFile } from '../../common/types/uploaded-file.type';
-import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../auth/interfaces/authenticated-request.interface';
 const pdfParse = require('pdf-parse');
 
 @Controller('interview')
@@ -17,11 +19,11 @@ export class InterviewController {
   constructor(private readonly interviewService: InterviewService) {}
 
   @Post('start-interview')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
   async startInterview(
+    @Req() req: AuthenticatedRequest,
     @UploadedFile() file: ResumeFile,
-    @Body('userId') userId: string,
     @Body('jobDescription') jobDescription: string,
   ) {
     let resumeText = '';
@@ -31,10 +33,11 @@ export class InterviewController {
     }
     const jd = jobDescription || 'Full Stack developer';
 
-    return this.interviewService.startInterview(resumeText, jd);
+    return this.interviewService.startInterview(req.user.userId, resumeText, jd);
   }
 
   @Post('answer')
+  @UseGuards(JwtAuthGuard)
   answer(@Body() body: any) {
     return this.interviewService.processAnswer(body);
   }

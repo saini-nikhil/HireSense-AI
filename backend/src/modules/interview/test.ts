@@ -1,12 +1,17 @@
 import { ApifyClient } from 'apify-client';
-
-const client = new ApifyClient({ token: process.env.APIFY_API_TOKEN });
+import * as dotenv from 'dotenv';
+dotenv.config();
+const client = new ApifyClient({
+  token: process.env.APIFY_API_TOKEN,
+});
+if (!process.env.APIFY_API_TOKEN)
+  throw new Error('APIFY_API_TOKEN is not set in environment variables'); // process.env.APIFY_API_TOKEN
 
 // ---------------------------------------------------------------------------
 // Model fallback chain — tries each in order on failure / rate-limit
 // ---------------------------------------------------------------------------
 const MODELS = [
-  'qwen/qwen3.6-plus:free',
+  'qwen/qwen3-coder:free',
   'gpt-4o-mini',
   'google/gemma-3-12b-it:free',
 ];
@@ -90,7 +95,10 @@ function parseJSON<T>(text: string): T {
 // ---------------------------------------------------------------------------
 // Step 1: Extract keywords from resume
 // ---------------------------------------------------------------------------
-async function extractKeywordsFromResume(resumeText: string): Promise<{
+async function extractKeywordsFromResume(
+  resumeText: string,
+  location: string,
+): Promise<{
   jobTitles: string[];
   location: string;
   skills: string[];
@@ -99,7 +107,7 @@ async function extractKeywordsFromResume(resumeText: string): Promise<{
     typeof resumeText === 'string' ? resumeText : JSON.stringify(resumeText);
 
   const text =
-    await callAI(`Extract the top 3 job titles, primary location, and top 5 skills from this resume.
+    await callAI(`Extract the top 3 job titles, primary location "${location}", and top 5 skills from this resume.
 Return ONLY valid JSON, no explanation, no markdown:
 {"jobTitles": ["title1", "title2"], "location": "city, country", "skills": ["skill1"]}
 
@@ -118,9 +126,11 @@ async function scrapeJobs({
   jobTitles: string[];
   location: string;
 }): Promise<any[]> {
+  console.log('jobTitles', jobTitles, location);
+  // return ['hello'];
   const run = await client.actor('bebity/linkedin-jobs-scraper').call({
-    queries: jobTitles.map((title) => `${title} ${location}`),
-    location,
+    title: jobTitles[0], // ✅ REQUIRED
+    location: location, // ✅ REQUIRED
     maxResults: 20,
     datePosted: 'month',
   });
@@ -177,7 +187,7 @@ export async function findJobsForResume(
   userJobDescription = '',
 ): Promise<any[]> {
   console.log('[1/3] Extracting keywords from resume...');
-  const keywords = await extractKeywordsFromResume(resumeText);
+  const keywords = await extractKeywordsFromResume(resumeText, 'Ahmedabad');
   console.log('Keywords:', keywords);
 
   console.log('[2/3] Scraping jobs via Apify...');
@@ -187,9 +197,9 @@ export async function findJobsForResume(
   // Pause between AI calls to avoid upstream rate-limit
   await delay(2000);
 
-  console.log('[3/3] Ranking jobs with AI...');
+  console.log('[3/3] Ranking jobs with AI...', jobs, jobs.length);
   const rankedJobs = await rankJobsWithAI(jobs, resumeText, userJobDescription);
-  console.log('Ranked jobs:', rankedJobs);
+  // console.log('Ranked jobs:', rankedJobs);
 
   return rankedJobs;
 }

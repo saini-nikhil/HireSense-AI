@@ -11,7 +11,7 @@ import { UploadedFile } from '../../common/types/uploaded-file.type';
 import { findJobsForResume } from './test';
 import { AiService } from './ai.service';
 import { queryObjects } from 'v8';
-import e from 'express';
+// import e from 'express';
 
 @Injectable()
 export class InterviewService {
@@ -24,53 +24,53 @@ export class InterviewService {
 
   // console.log(this.AI_URL);
 
-  // // 🚀 START INTERVIEW
-  // async startInterview(
-  //   userId: string,
-  //   file: UploadedFile,
-  //   jobDescription: string,
-  // ) {
-  //   const aiUrl = process.env.PYTHON_API_URL;
+  // 🚀 START INTERVIEW
+  async startInterview1(
+    userId: string,
+    file: UploadedFile,
+    jobDescription: string,
+  ) {
+    const aiUrl = process.env.PYTHON_API_URL;
 
-  //   const formData = new FormData();
+    const formData = new FormData();
 
-  //   formData.append('file', file.buffer, {
-  //     filename: file.originalname,
-  //     contentType: file.mimetype,
-  //   });
+    formData.append('file', file.buffer, {
+      filename: file.originalname,
+      contentType: file.mimetype,
+    });
 
-  //   formData.append('jobDescription', jobDescription);
-  //   // return await formData
-  //   const res = await axios.post<{
-  //     analysis?: { summary?: string };
-  //     interview?: { questions?: string[] };
-  //   }>(`${aiUrl}/evaluate`, formData, {
-  //     headers: {
-  //       ...formData.getHeaders(),
-  //     },
-  //   });
+    formData.append('jobDescription', jobDescription);
+    // return await formData
+    const res = await axios.post<{
+      analysis?: { summary?: string };
+      interview?: { questions?: string[] };
+    }>(`${aiUrl}/evaluate`, formData, {
+      headers: {
+        ...formData.getHeaders(),
+      },
+    });
 
-  //   const result = res.data;
-  //   const resumeContent = result.analysis?.summary || '';
-  //   await findJobsForResume(resumeContent, jobDescription);
-  //   // console.log("result",result);
+    const result = res.data;
+    const resumeContent = result.analysis?.summary || '';
+    await findJobsForResume(resumeContent, jobDescription);
+    // console.log("result",result);
 
-  //   // ✅ create + save
-  //   const interview = this.interviewRepo.create({
-  //     userId,
-  //     resumeText: result.analysis?.summary || '', // or store separately
-  //     questions: result?.interview?.questions || [],
-  //     answers: [],
-  //   });
+    // ✅ create + save
+    const interview = this.interviewRepo.create({
+      userId,
+      resumeText: result.analysis?.summary || '', // or store separately
+      questions: result?.interview?.questions || [],
+      answers: [],
+    });
 
-  //   const savedInterview = await this.interviewRepo.save(interview);
-  //   console.log(savedInterview);
+    const savedInterview = await this.interviewRepo.save(interview);
+    console.log(savedInterview);
 
-  //   return {
-  //     interviewId: savedInterview.id, //
-  //     question: savedInterview.questions,
-  //   };
-  // }
+    return {
+      interviewId: savedInterview.id, //
+      question: savedInterview.questions,
+    };
+  }
 
   // // 🔁 ANSWER FLOW
   // async answerQuestion(interviewId: string, answer: string) {
@@ -149,7 +149,7 @@ export class InterviewService {
     jobDescription: string,
   ) {
     // console.log('resumeText', resumeText);
-    return await findJobsForResume(resumeText, jobDescription);
+    // return await findJobsForResume(resumeText, jobDescription);
     const sessionId = 1234569858;
 
     const firstQuestion = 'Tell me about yourself';

@@ -28,7 +28,7 @@ ANALYSIS_MODELS = tuple(
     model.strip()
     for model in os.getenv(
         "OPENROUTER_ANALYSIS_MODELS",
-        "qwen/qwen3.6-plus:free,gpt-4o-mini",
+        "gpt-4o-mini",
     ).split(",")
     if model.strip()
 )
@@ -37,7 +37,7 @@ INTERVIEW_MODELS = tuple(
     model.strip()
     for model in os.getenv(
         "OPENROUTER_INTERVIEW_MODELS",
-        "qwen/qwen3.6-plus:free,gpt-4o-mini",
+        "gpt-4o-mini",
     ).split(",")
     if model.strip()
 )
@@ -133,6 +133,7 @@ def evaluate_resume_all(resume_text: str, job_description: str):
         resume=resume_text,
         job=job_description,
     )
+    print(analysis_prompt)
 
     analysis_res = _complete_with_fallback(
         prompt=analysis_prompt,
@@ -176,68 +177,68 @@ def evaluate_answer(question: str, answer: str):
     return safe_json_parse(_first_text_content(res))
 
 
-def analyze_skill_gap(self, structured_resume: dict, jd: str) -> dict:
-    prompt = f"""
-You are a hiring expert.
+# def analyze_skill_gap(self, structured_resume: dict, jd: str) -> dict:
+#     prompt = f"""
+# You are a hiring expert.
 
-Candidate Skills:
-{structured_resume.get("skills", [])}
+# Candidate Skills:
+# {structured_resume.get("skills", [])}
 
-Job Description:
-{jd}
+# Job Description:
+# {jd}
 
-=========================
-TASK:
-=========================
+# =========================
+# TASK:
+# =========================
 
-1. Identify:
-   - matched skills
-   - missing skills
-   - extra skills
+# 1. Identify:
+#    - matched skills
+#    - missing skills
+#    - extra skills
 
-2. Evaluate readiness
+# 2. Evaluate readiness
 
-=========================
-OUTPUT (STRICT JSON)
-=========================
+# =========================
+# OUTPUT (STRICT JSON)
+# =========================
 
-{{
-  "matchedSkills": [],
-  "missingSkills": [],
-  "extraSkills": [],
-  "readiness": "low | medium | high"
-}}
-"""
+# {{
+#   "matchedSkills": [],
+#   "missingSkills": [],
+#   "extraSkills": [],
+#   "readiness": "low | medium | high"
+# }}
+# """
 
-    try:
-        response = requests.post(
-            self.base_url,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "openai/gpt-4o-mini",
-                "messages": [
-                    {"role": "system", "content": "You analyze hiring fit."},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.3,
-            },
-        )
+#     try:
+#         response = requests.post(
+#             self.base_url,
+#             headers={
+#                 "Authorization": f"Bearer {self.api_key}",
+#                 "Content-Type": "application/json",
+#             },
+#             json={
+#                 "model": "openai/gpt-4o-mini",
+#                 "messages": [
+#                     {"role": "system", "content": "You analyze hiring fit."},
+#                     {"role": "user", "content": prompt},
+#                 ],
+#                 "temperature": 0.3,
+#             },
+#         )
 
-        content = response.json()["choices"][0]["message"]["content"]
-        return self.safe_json_parse(content)
+#         content = response.json()["choices"][0]["message"]["content"]
+#         return self.safe_json_parse(content)
 
-    except:
-        return {
-            "matchedSkills": [],
-            "missingSkills": [],
-            "extraSkills": [],
-            "readiness": "medium"
-        }
+#     except:
+#         return {
+#             "matchedSkills": [],
+#             "missingSkills": [],
+#             "extraSkills": [],
+#             "readiness": "medium"
+#         }
     
 
 
-# def generateFinalReport(history: any[], resume:, jd):
+# # def generateFinalReport(history: any[], resume:, jd):
         

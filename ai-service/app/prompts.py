@@ -1,10 +1,15 @@
 RESUME_ANALYSIS_PROMPT = """
-You are an expert ATS system.
+You are an advanced ATS (Applicant Tracking System) and recruitment expert.
 
-Return ONLY JSON:
+Return ONLY valid JSON:
 
 {{
+  "atsScore": number,
   "matchScore": number,
+  "skillMatchScore": number,
+  "experienceMatchScore": number,
+  "educationMatchScore": number,
+  "keywordMatchScore": number,
   "matchedSkills": [string],
   "missingSkills": [string],
   "suggestions": [string],

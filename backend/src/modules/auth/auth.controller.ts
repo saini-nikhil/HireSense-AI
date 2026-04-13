@@ -37,8 +37,13 @@ export class AuthController {
   // 🌐 CALLBACK
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleCallback(@Request() req: AuthenticatedRequest, @Res() res: Response) {
+  async googleCallback(
+    @Request() req: AuthenticatedRequest,
+    @Res() res: Response,
+  ) {
     const result = await this.authService.login(req.user);
-    res.redirect(`http://localhost:3000/auth/google?token=${result.access_token}`);
+    res.redirect(
+      `http://localhost:3000/auth/google?token=${result.access_token}`,
+    );
   }
 }

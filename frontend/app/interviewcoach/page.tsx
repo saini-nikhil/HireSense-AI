@@ -365,10 +365,10 @@ export default function InterviewPage() {
 
     try {
       // Call your backend to get the first question
-      const res = await fetch("http://localhost:3000/interview/answer", {
+      const res = await fetch("http://localhost:3001/interview/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: 1234569858 }),
+        body: JSON.stringify({ sessionId: '6288d050-a068-45d2-8770-ccf21511dece' }),
       });
       const data = await res.json();
       const q = data.question || data.nextQuestion || "Tell me about yourself.";
@@ -394,10 +394,10 @@ export default function InterviewPage() {
     setTranscript((t) => [...t, { role: "user", text: answer }]);
 
     try {
-      const res = await fetch("http://localhost:3000/interview/answer", {
+      const res = await fetch("http://localhost:3001/interview/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: 1234569858, answer }),
+        body: JSON.stringify({ sessionId: '6288d050-a068-45d2-8770-ccf21511dece' , answer }),
       });
 
       if (!res.ok) throw new Error("API error");

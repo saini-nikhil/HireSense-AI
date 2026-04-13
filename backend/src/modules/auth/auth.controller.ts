@@ -5,10 +5,12 @@ import {
   Post,
   Request,
   UseGuards,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthenticatedRequest } from './interfaces/authenticated-request.interface';
+import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -35,8 +37,8 @@ export class AuthController {
   // 🌐 CALLBACK
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  googleCallback(@Request() req: AuthenticatedRequest) {
-    // console.log(req.user);
-    return this.authService.login(req.user);
+  async googleCallback(@Request() req: AuthenticatedRequest, @Res() res: Response) {
+    const result = await this.authService.login(req.user);
+    res.redirect(`http://localhost:3000/auth/google?token=${result.access_token}`);
   }
 }

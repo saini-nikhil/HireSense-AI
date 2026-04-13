@@ -1,11 +1,5 @@
-import { ApifyClient } from 'apify-client';
 import * as dotenv from 'dotenv';
 dotenv.config();
-const client = new ApifyClient({
-  token: process.env.APIFY_API_TOKEN,
-});
-if (!process.env.APIFY_API_TOKEN)
-  throw new Error('APIFY_API_TOKEN is not set in environment variables'); // process.env.APIFY_API_TOKEN
 
 // ---------------------------------------------------------------------------
 // Model fallback chain — tries each in order on failure / rate-limit
@@ -116,9 +110,6 @@ Resume: ${textInput.slice(0, 3000)}`);
   return parseJSON(text);
 }
 
-// ---------------------------------------------------------------------------
-// Step 2: Scrape jobs via Apify
-// ---------------------------------------------------------------------------
 async function scrapeJobs({
   jobTitles,
   location,
@@ -126,17 +117,30 @@ async function scrapeJobs({
   jobTitles: string[];
   location: string;
 }): Promise<any[]> {
-  console.log('jobTitles', jobTitles, location);
-  // return ['hello'];
-  const run = await client.actor('bebity/linkedin-jobs-scraper').call({
-    title: jobTitles[0], // ✅ REQUIRED
-    location: location, // ✅ REQUIRED
-    maxResults: 20,
-    datePosted: 'month',
-  });
+  const query = `${jobTitles[0]} jobs in ${location}`;
 
-  const { items } = await client.dataset(run.defaultDatasetId).listItems();
-  return items;
+  const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(
+    query,
+  )}&page=1&num_pages=1&country=us&date_posted=all`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-rapidapi-host': 'jsearch.p.rapidapi.com',
+        'x-rapidapi-key': process.env.RAPID_API_KEY!,
+      },
+    });
+
+    const data = await response.json();
+
+    // return only job results
+    return data.data || [];
+  } catch (error) {
+    console.error('Error fetching jobs:', error);
+    return [];
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -184,20 +188,21 @@ Jobs: ${JSON.stringify(jobsSummary)}`);
 // ---------------------------------------------------------------------------
 export async function findJobsForResume(
   resumeText: string,
-  userJobDescription = '',
+  userJobDescription,
+  location: string,
 ): Promise<any[]> {
-  console.log('[1/3] Extracting keywords from resume...');
-  const keywords = await extractKeywordsFromResume(resumeText, 'Ahmedabad');
+  // console.log('[1/3] Extracting keywords from resume...');
+  const keywords = await extractKeywordsFromResume(resumeText, location);
   console.log('Keywords:', keywords);
 
-  console.log('[2/3] Scraping jobs via Apify...');
+  // console.log('[2/3] Scraping jobs via JsSearch...');
   const jobs = await scrapeJobs(keywords);
   console.log(`Found ${jobs.length} jobs`);
 
   // Pause between AI calls to avoid upstream rate-limit
   await delay(2000);
 
-  console.log('[3/3] Ranking jobs with AI...', jobs, jobs.length);
+  // console.log('[3/3] Ranking jobs with AI...', jobs, jobs.length);
   const rankedJobs = await rankJobsWithAI(jobs, resumeText, userJobDescription);
   // console.log('Ranked jobs:', rankedJobs);
 

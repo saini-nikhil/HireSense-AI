@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Interview } from './modules/interview/interview.entity';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
+import { WebscraperModule } from './modules/webscraper/webscraper.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AuthModule } from './modules/auth/auth.module';
     }),
     AuthModule,
     InterviewModule,
+    WebscraperModule,
   ],
   controllers: [AppController],
   providers: [AppService],

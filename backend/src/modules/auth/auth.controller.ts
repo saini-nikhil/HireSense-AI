@@ -36,6 +36,7 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   googleCallback(@Request() req: AuthenticatedRequest) {
+    // console.log(req.user);
     return this.authService.login(req.user);
   }
 }

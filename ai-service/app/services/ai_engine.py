@@ -176,6 +176,60 @@ def evaluate_answer(question: str, answer: str):
     return safe_json_parse(_first_text_content(res))
 
 
+def generate_ats_resume_structured(resume_text: str, job_description: str, suggestions=None):
+    suggestions = suggestions or []
+
+    prompt = f"""
+You are an ATS Resume Builder.
+
+=========================
+INPUT
+=========================
+
+Resume:
+{resume_text}
+
+Job Description:
+{job_description}
+
+Suggestions:
+{suggestions}
+
+=========================
+TASK
+=========================
+
+Create an ATS-optimized resume.
+
+=========================
+OUTPUT (STRICT JSON)
+=========================
+
+{{
+  "name": "",
+  "title": "",
+  "summary": "",
+  "skills": [],
+  "experience": [
+    {{
+      "company": "",
+      "role": "",
+      "points": []
+    }}
+  ],
+  "projects": [],
+  "education": []
+}}
+"""
+
+    res = _complete_with_fallback(
+        prompt=prompt,
+        models=ANALYSIS_MODELS,
+        temperature=0.3,
+    )
+
+    return safe_json_parse(_first_text_content(res))
+
 def analyze_skill_gap(self, structured_resume: dict, jd: str) -> dict:
     prompt = f"""
 You are a hiring expert.

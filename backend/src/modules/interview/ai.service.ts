@@ -1,5 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
+import {
+  AiResponse,
+  FinalInterviewReport,
+  InterviewHistoryItem,
+} from './interview.types';
+
+interface OpenRouterMessage {
+  content?: unknown;
+}
+
+interface OpenRouterChoice {
+  message?: OpenRouterMessage;
+}
+
+interface OpenRouterResponseBody {
+  choices?: OpenRouterChoice[];
+}
 
 @Injectable()
 export class AiService {
@@ -9,12 +26,10 @@ export class AiService {
   async generateNextStep(data: {
     resume: string;
     jd: string;
-    history: any[];
+    history: InterviewHistoryItem[];
     lastQuestion: string;
     userAnswer: string;
-  }) {
-    console.log('data', data);
-
+  }): Promise<AiResponse> {
     const prompt = `
 You are a professional interviewer.
 
@@ -70,7 +85,7 @@ OUTPUT (STRICT JSON ONLY)
 =========================
 
 {
-  "action": "ask | repeat | explain | end",
+  "action": "next | repeat | explain | end",
   "question": "...",
   "evaluation": {
     "technicalScore": number,
@@ -81,7 +96,7 @@ OUTPUT (STRICT JSON ONLY)
 `;
 
     try {
-      const response = await axios.post(
+      const response = await axios.post<OpenRouterResponseBody>(
         'https://openrouter.ai/api/v1/chat/completions',
         {
           model: 'openai/gpt-4o-mini',
@@ -118,15 +133,19 @@ STYLE:
         },
       );
 
-      const content = response.data.choices[0].message.content;
+      const content = response.data.choices?.[0]?.message?.content;
+
+      if (typeof content !== 'string') {
+        throw new Error('OpenRouter response content is missing or invalid');
+      }
 
       return this.safeJsonParse(content);
-    } catch (error) {
-      console.error('OpenRouter Error:', error.response?.data || error.message);
+    } catch (error: unknown) {
+      console.error('OpenRouter Error:', this.getErrorDetails(error));
 
       // fallback
       return {
-        action: 'ask',
+        action: 'next',
         question:
           'Can you explain one of your recent projects and the technologies you used?',
         evaluation: {
@@ -139,8 +158,11 @@ STYLE:
   }
 
   // ================= FINAL REPORT =================
-  async generateFinalReport(history: any[], resume: string, jd: string) {
-    console.log('history', history);
+  async generateFinalReport(
+    history: InterviewHistoryItem[],
+    resume: string,
+    jd: string,
+  ): Promise<FinalInterviewReport> {
     const prompt = `
 You are an expert interviewer.
 
@@ -176,7 +198,7 @@ OUTPUT (STRICT JSON)
 `;
 
     try {
-      const response = await axios.post(
+      const response = await axios.post<OpenRouterResponseBody>(
         'https://openrouter.ai/api/v1/chat/completions',
         {
           model: 'openai/gpt-4o-mini',
@@ -206,11 +228,15 @@ Be specific.
         },
       );
 
-      const content = response.data.choices[0].message.content;
+      const content = response.data.choices?.[0]?.message?.content;
 
-      return this.safeJsonParse(content);
-    } catch (error) {
-      console.error('OpenRouter Error:', error.response?.data || error.message);
+      if (typeof content !== 'string') {
+        throw new Error('OpenRouter response content is missing or invalid');
+      }
+
+      return this.safeFinalReportParse(content);
+    } catch (error: unknown) {
+      console.error('OpenRouter Error:', this.getErrorDetails(error));
 
       return {
         technicalScore: 5,
@@ -224,22 +250,163 @@ Be specific.
   }
 
   // ================= SAFE JSON PARSER =================
-  private safeJsonParse(text: string) {
+  private safeJsonParse(text: string): AiResponse {
     try {
       const match = text.match(/\{[\s\S]*\}/);
       if (match) {
-        return JSON.parse(match[0]);
+        const parsed: unknown = JSON.parse(match[0]);
+        const normalized = this.normalizeAiResponse(parsed);
+
+        if (normalized) {
+          return normalized;
+        }
       }
-      throw new Error('Invalid JSON');
-    } catch (e) {
+      throw new Error('Invalid AI response JSON');
+    } catch {
       console.warn('JSON parse failed, fallback:', text);
 
       return {
-        action: 'ask',
+        action: 'next',
         question: text,
         evaluation: null,
       };
     }
+  }
+
+  private normalizeAiResponse(value: unknown): AiResponse | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+
+    const rawAction = value.action;
+    const question = value.question;
+    const evaluation = value.evaluation;
+
+    if (typeof rawAction !== 'string') {
+      return null;
+    }
+
+    const action = rawAction === 'ask' ? 'next' : rawAction;
+
+    if (
+      action !== 'next' &&
+      action !== 'repeat' &&
+      action !== 'explain' &&
+      action !== 'end'
+    ) {
+      return null;
+    }
+
+    if (question !== undefined && typeof question !== 'string') {
+      return null;
+    }
+
+    if (
+      evaluation !== undefined &&
+      evaluation !== null &&
+      !this.isAiEvaluation(evaluation)
+    ) {
+      return null;
+    }
+
+    return {
+      action,
+      question,
+      evaluation,
+    };
+  }
+
+  private safeFinalReportParse(text: string): FinalInterviewReport {
+    try {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed: unknown = JSON.parse(match[0]);
+
+        if (this.isFinalInterviewReport(parsed)) {
+          return parsed;
+        }
+      }
+      throw new Error('Invalid final report JSON');
+    } catch {
+      console.warn('Final report parse failed, fallback:', text);
+
+      return {
+        technicalScore: 5,
+        communicationScore: 5,
+        overallScore: 5,
+        strengths: ['Basic understanding of concepts'],
+        weaknesses: ['Needs improvement in explaining concepts clearly'],
+        suggestions: ['Practice mock interviews and project explanations'],
+      };
+    }
+  }
+
+  private isAiResponse(value: unknown): value is AiResponse {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+
+    const action = value.action;
+    const question = value.question;
+
+    return (
+      (action === 'next' ||
+        action === 'repeat' ||
+        action === 'explain' ||
+        action === 'end') &&
+      (question === undefined || typeof question === 'string')
+    );
+  }
+
+  private isAiEvaluation(value: unknown): value is AiResponse['evaluation'] {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+
+    return (
+      typeof value.technicalScore === 'number' &&
+      typeof value.communicationScore === 'number' &&
+      typeof value.feedback === 'string'
+    );
+  }
+
+  private isFinalInterviewReport(
+    value: unknown,
+  ): value is FinalInterviewReport {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+
+    return (
+      typeof value.technicalScore === 'number' &&
+      typeof value.communicationScore === 'number' &&
+      typeof value.overallScore === 'number' &&
+      this.isStringArray(value.strengths) &&
+      this.isStringArray(value.weaknesses) &&
+      this.isStringArray(value.suggestions)
+    );
+  }
+
+  private isStringArray(value: unknown): value is string[] {
+    return (
+      Array.isArray(value) && value.every((item) => typeof item === 'string')
+    );
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+  }
+
+  private getErrorDetails(error: unknown): unknown {
+    if (axios.isAxiosError(error)) {
+      return error.response?.data ?? error.message;
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return error;
   }
 
   detectIntent(answer: string): boolean {

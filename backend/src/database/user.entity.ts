@@ -3,11 +3,13 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { InterviewSession } from './interviewsession.entity';
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn()
   id: string;
 
   @Column({ unique: true })
@@ -24,4 +26,7 @@ export class User {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @OneToMany(() => InterviewSession, (session) => session.user)
+  interviewSessions: InterviewSession[];
 }

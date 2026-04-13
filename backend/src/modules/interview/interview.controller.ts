@@ -9,10 +9,15 @@ import {
 } from '@nestjs/common';
 import { InterviewService } from './interview.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import pdfParse = require('pdf-parse');
 import { UploadedFile as ResumeFile } from '../../common/types/uploaded-file.type';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../auth/interfaces/authenticated-request.interface';
-const pdfParse = require('pdf-parse');
+
+interface AnswerRequestBody {
+  sessionId: string;
+  answer: string;
+}
 
 @Controller('interview')
 export class InterviewController {
@@ -32,13 +37,21 @@ export class InterviewController {
       resumeText = data.text;
     }
     const jd = jobDescription || 'Full Stack developer';
-
-    return this.interviewService.startInterview(req.user.userId, resumeText, jd);
+    console.log(req.user.userId, jd);
+    return this.interviewService.startInterview(
+      req.user.userId,
+      resumeText,
+      jd,
+    );
   }
 
   @Post('answer')
   @UseGuards(JwtAuthGuard)
-  answer(@Body() body: any) {
-    return this.interviewService.processAnswer(body);
+  answer(@Req() req: AuthenticatedRequest, @Body() body: AnswerRequestBody) {
+    return this.interviewService.processAnswer(
+      req.user.userId,
+      body.sessionId,
+      body.answer,
+    );
   }
 }

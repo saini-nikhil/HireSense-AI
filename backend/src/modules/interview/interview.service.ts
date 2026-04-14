@@ -7,17 +7,16 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { AiService } from './ai.service';
-import { queryObjects } from 'v8';
 // import e from 'express';
 
-import {
-  InterviewSession,
-  InterviewSessionStatus,
-} from 'src/database/interviewsession.entity';
 import {
   InterviewMessage,
   InterviewMessageRole,
 } from 'src/database/interview-message.entity';
+import {
+  InterviewSession,
+  InterviewSessionStatus,
+} from 'src/database/interviewsession.entity';
 import {
   AiResponse,
   FinalInterviewReport,

@@ -7,6 +7,7 @@ import { Interview } from './modules/interview/interview.entity';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './modules/auth/auth.module';
 import { WebscraperModule } from './modules/webscraper/webscraper.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { WebscraperModule } from './modules/webscraper/webscraper.module';
     AuthModule,
     InterviewModule,
     WebscraperModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

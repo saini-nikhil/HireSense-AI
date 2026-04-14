@@ -5,7 +5,7 @@ import { Response } from 'express';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post('generate-pdf')
+  @Post('resumebuilder')
   async generatePdf(@Body() body: any, @Res() res: Response) {
     const pdf = await this.usersService.generatePdf(body);
 

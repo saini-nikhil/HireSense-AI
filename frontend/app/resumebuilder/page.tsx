@@ -11,7 +11,7 @@ const STEPS = [
 ];
 
 const inputClass =
-  "w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition placeholder:text-gray-400";
+  "w-full px-3 py-2 text-sm text-gray-900 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition placeholder:text-gray-400";
 const labelClass = "block text-xs font-medium text-gray-500 mb-1";
 const sectionCardClass =
   "border border-gray-100 rounded-xl p-4 bg-gray-50 space-y-3 relative";
@@ -220,6 +220,7 @@ export default function AtsResumeBuilder() {
 
   const handleSubmit = async () => {
     setLoading(true);
+
     const payload = {
       ...form,
       skills: form.skills
@@ -235,15 +236,22 @@ export default function AtsResumeBuilder() {
         points: proj.points.split("\n").filter(Boolean),
       })),
     };
+
     try {
-      const res = await fetch("/resumebuilder", {
+      const res = await fetch("http://localhost:3001/users/resumebuilder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      await res.json();
-      alert("Resume generated successfully!");
-    } catch {
+
+      const blob = await res.blob(); // ✅ IMPORTANT
+
+      const url = window.URL.createObjectURL(blob);
+
+      // ✅ Open in new tab
+      window.open(url, "_blank");
+    } catch (err) {
+      console.error(err);
       alert("Error generating resume");
     } finally {
       setLoading(false);
@@ -380,7 +388,7 @@ export default function AtsResumeBuilder() {
                     <input
                       className={inputClass}
                       name="linkedin"
-                      placeholder="linkedin.com/in/johndoe"
+                      placeholder="https://www.linkedin.com/in/johndoe"
                       value={form.linkedin}
                       onChange={handleChange}
                     />
@@ -390,7 +398,7 @@ export default function AtsResumeBuilder() {
                     <input
                       className={inputClass}
                       name="github"
-                      placeholder="github.com/johndoe"
+                      placeholder="https://github.com/johndoe"
                       value={form.github}
                       onChange={handleChange}
                     />

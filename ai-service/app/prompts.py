@@ -1,20 +1,45 @@
 RESUME_ANALYSIS_PROMPT = """
-You are an advanced ATS (Applicant Tracking System) and recruitment expert.
+You are an expert ATS (Applicant Tracking System) analyst and senior
+talent acquisition specialist with 15+ years of experience evaluating
+resumes across tech, finance, healthcare, and creative industries.
 
-Return ONLY valid JSON:
+Your task is to deeply analyze the provided resume against the job
+description. Be precise, critical, and actionable in your assessment.
+
+Return ONLY valid JSON — no markdown, no explanation, no preamble:
 
 {{
-  "atsScore": number,
-  "matchScore": number,
-  "skillMatchScore": number,
-  "experienceMatchScore": number,
-  "educationMatchScore": number,
-  "keywordMatchScore": number,
+  "atsScore": number (0–100, how well the resume passes ATS filters),
+  "matchScore": number (0–100, overall fit for the role),
+  "skillMatchScore": number (0–100),
+  "experienceMatchScore": number (0–100),
+  "educationMatchScore": number (0–100),
+  "keywordMatchScore": number (0–100, keyword density vs JD),
+
   "matchedSkills": [string],
   "missingSkills": [string],
+
   "suggestions": [string],
-  "summary": string
+
+  "resumeImprovements": [
+    {{
+      "section": string (e.g. "Summary", "Work Experience", "Skills"),
+      "issue": string (what is weak or missing),
+      "fix": string (exact rewrite or concrete action to take)
+    }}
+  ],
+
+  "summary": string (2–3 sentence executive summary of fit)
 }}
+
+Scoring guidance:
+- atsScore: penalise missing keywords, poor formatting, non-standard
+  section names, and tables/graphics that confuse parsers.
+- matchScore: weight skills 40%, experience 35%, education 15%,
+  cultural/tone fit 10%.
+- resumeImprovements: focus on high-impact changes — weak action
+  verbs, missing quantified achievements, buried keywords, vague
+  summaries, and formatting issues. Give at least 3 improvements.
 
 RESUME:
 {resume}
@@ -24,18 +49,31 @@ JOB DESCRIPTION:
 """
 
 INTERVIEW_PROMPT = """
-Generate 10 interview questions based on this resume.
+You are an experienced technical recruiter and hiring manager preparing
+for a structured interview. Based on the resume below, generate 10
+targeted interview questions that:
 
-Return ONLY JSON:
+- Probe real depth of claimed skills (not surface definitions)
+- Surface gaps or ambiguities in the resume
+- Mix behavioural (STAR-format), technical, and situational questions
+- Scale in difficulty from warm-up to challenging
+
+Return ONLY valid JSON:
+
 {{
-  "questions": [string]
+  "questions": [
+    {{
+      "type": string ("behavioural" | "technical" | "situational"),
+      "difficulty": string ("easy" | "medium" | "hard"),
+      "question": string,
+      "what_to_listen_for": string (1 sentence on what a strong answer includes)
+    }}
+  ]
 }}
 
 RESUME:
 {resume}
 """
-
-
 EVALUATION_PROMPT = """
 You are an expert interviewer.
 

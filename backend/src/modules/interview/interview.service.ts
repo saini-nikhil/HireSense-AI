@@ -23,6 +23,7 @@ import {
   InterviewHistoryItem,
 } from './interview.types';
 import axios from 'axios';
+import { UploadedFile as ResumeFile } from 'src/common/types/uploaded-file.type';
 @Injectable()
 export class InterviewService {
   private readonly MAX_QUESTIONS = 15;
@@ -199,6 +200,32 @@ export class InterviewService {
     };
   }
 
+  async evaluateResume( file: ResumeFile, jd: string) {
+    try {
+      const formData = new (require('form-data'))();
+
+      formData.append('file', file.buffer, {
+        filename: file.originalname,
+        contentType: file.mimetype,
+      });
+
+      formData.append('jobDescription', jd);
+
+      const response = await axios.post(
+        'http://localhost:8000/evaluate',
+        formData,
+        {
+          headers: {
+            ...formData.getHeaders(),
+          },
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      console.log('Evaluate Resume', error.response?.data || error);
+    }
+  }
   private buildHistory(
     existingMessages: InterviewMessage[],
     latestAnswer: string,

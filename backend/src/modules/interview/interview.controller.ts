@@ -54,4 +54,21 @@ export class InterviewController {
       body.answer,
     );
   }
+
+  @Post('evaluate')
+  // @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  evaluate(
+    @Req() req: AuthenticatedRequest,
+    @UploadedFile() file: ResumeFile,
+    @Body('jobDescription') jobDescription: string,
+  ) {
+    console.log('FILE:', file); // 👈 ADD THIS
+    console.log('JD:', jobDescription);
+
+    return this.interviewService.evaluateResume(
+      file,
+      jobDescription,
+    );
+  }
 }

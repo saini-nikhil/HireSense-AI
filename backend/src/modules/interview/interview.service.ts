@@ -22,6 +22,7 @@ import {
   FinalInterviewReport,
   InterviewHistoryItem,
 } from './interview.types';
+import axios from 'axios';
 @Injectable()
 export class InterviewService {
   private readonly MAX_QUESTIONS = 15;
@@ -116,14 +117,23 @@ export class InterviewService {
     if (shouldEndInterview) {
       return this.completeInterview(session, history);
     }
-
-    const aiResponse: AiResponse = await this.aiService.generateNextStep({
+    const response = await axios.post('http://localhost:8000/test', {
       resume: session.resume,
       jd: session.jobDescription,
       history,
       lastQuestion: session.currentQuestion ?? '',
       userAnswer: normalizedAnswer,
     });
+
+    const aiResponse: AiResponse = response.data;
+
+    // const aiResponse: AiResponse = await this.aiService.generateNextStep({
+    //   resume: session.resume,
+    //   jd: session.jobDescription,
+    //   history,
+    //   lastQuestion: session.currentQuestion ?? '',
+    //   userAnswer: normalizedAnswer,
+    // });
 
     if (session.questionCount >= this.MAX_QUESTIONS) {
       const finalResult = await this.completeInterview(session, history);
@@ -185,6 +195,7 @@ export class InterviewService {
 
     return {
       nextQuestion,
+      evaluationResult: aiResponse.evaluation,
     };
   }
 

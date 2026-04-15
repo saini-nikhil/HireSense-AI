@@ -1,7 +1,9 @@
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-
+from pydantic import BaseModel
+from typing import List, Dict, Any
 from app.services.ai_engine import AIServiceError, evaluate_resume_all,evaluate_answer,generate_ats_resume_structured
 from app.utils.parser import extract_text_from_pdf
+from app.services.ai_enginee import generate_next_step
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +15,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+class InterviewRequest(BaseModel):
+    resume: str
+    jd: str
+    history: List[Dict[str, Any]]
+    lastQuestion: str
+    userAnswer: str
 
 @app.get('/')
 def hello():
@@ -44,22 +52,25 @@ async def evaluate_resume(
 # async def test(answer , question):
 #     return evaluate_answer(question, answer)
 #     # return {'answer': answer, 'question': question}
-@app.post('/improve-resume-pdf')
-async def improve_resume_pdf(
-    file: UploadFile = File(...),
-    jobDescription: str = Form(...),
-    suggestions: str = Form(...),
-):
-    try:
-        file_bytes = await file.read()
-        resume_text = extract_text_from_pdf(file_bytes)
-        return generate_ats_resume_structured(resume_text, jobDescription, suggestions)
-    except AIServiceError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail='Failed to improve resume') from exc               
+# @app.post('/improve-resume-pdf')
+# async def improve_resume_pdf(
+#     file: UploadFile = File(...),
+#     jobDescription: str = Form(...),
+#     suggestions: str = Form(...),
+# ):
+#     try:
+#         file_bytes = await file.read()
+#         resume_text = extract_text_from_pdf(file_bytes)
+#         return generate_ats_resume_structured(resume_text, jobDescription, suggestions)
+#     except AIServiceError as exc:
+#         raise HTTPException(status_code=503, detail=str(exc)) from exc
+#     except Exception as exc:
+#         raise HTTPException(status_code=500, detail='Failed to improve resume') from exc               
 
-@app.post('/test')
-async def test(answer , question):
-    return evaluate_answer(question, answer)
+@app.post("/test")
+async def test(data: InterviewRequest):
+    # print(data)
+    result = generate_next_step(data.dict())
+    print("result",result)
+    return result
     # return {'answer': answer, 'question': question}
